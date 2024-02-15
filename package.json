@@ -8,7 +8,7 @@
   "scripts": {
     "clean": "rm -rf dist",
     "prebuild": "npm run clean",
-    "build": "tsc src/index.ts",
+    "build": "tsc",
     "test": "jest",
     "lint": "eslint \"**/*.{ts,js}\"",
     "lint:fix": "npm run lint --fix",
