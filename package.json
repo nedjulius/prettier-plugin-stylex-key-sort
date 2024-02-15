@@ -5,6 +5,7 @@
   "description": "Prettier plugin to sort StyleX keys",
   "main": "index.js",
   "scripts": {
+    "build": "tsc src/index.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
