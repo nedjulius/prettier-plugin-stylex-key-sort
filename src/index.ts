@@ -9,13 +9,22 @@ import {
 import { Parser, ParserOptions } from 'prettier';
 import * as parserBabel from 'prettier/plugins/babel';
 
+type StylexKeySortPluginOptions = {
+  minKeys?: number;
+  validImports?: string[];
+  allowLineSeparatedGroups?: boolean;
+};
+
 function withStylexKeySort(parser: Parser): Parser {
   return {
     ...parser,
     parse: function(text: string, options: ParserOptions) {
       const ast = parser.parse(text, options);
 
-      stylexKeySort(ast.program);
+      stylexKeySort(
+        ast.program,
+        options as ParserOptions & StylexKeySortPluginOptions,
+      );
 
       return ast;
     },
@@ -28,7 +37,10 @@ function getStylexImportContext(program: Program): {
 } {
   return program.body.reduce(
     (context, node) => {
-      if (node.type !== 'ImportDeclaration') {
+      if (
+        node.type !== 'ImportDeclaration' ||
+        !isStylexImportSource(node.source)
+      ) {
         // skip if node is not an ImportDeclaration
         return context;
       }
@@ -57,11 +69,15 @@ function getStylexImportContext(program: Program): {
   );
 }
 
-function stylexKeySort(program: Program) {
+function stylexKeySort(
+  program: Program,
+  options: ParserOptions & StylexKeySortPluginOptions,
+) {
+  const { validImports } = options;
   const { namespaces, identifiers } = getStylexImportContext(program);
 
-  if (namespaces.size === 0) {
-    // skip if there are no namespaces
+  if (namespaces.size === 0 && identifiers.size === 0) {
+    // skip if there are no namespaces or identifiers
     return;
   }
 
@@ -105,7 +121,7 @@ function isCreateOrKeyframes(value: string) {
 }
 
 function isStylexImportSource(source: StringLiteral) {
-  return source.value === '@stylexjs/stylex' || source.value === 'stylex';
+  return ['@stylexjs/stylex', 'stylex'].includes(source.value);
 }
 
 function sortObjectKeys(node: Node) {
