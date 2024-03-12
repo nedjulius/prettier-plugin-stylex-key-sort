@@ -1,9 +1,13 @@
 import {
   ImportDeclaration,
-  Literal,
   Program,
-  VariableDeclarator,
-} from 'estree';
+  Identifier,
+  MemberExpression,
+  ObjectExpression,
+  Node,
+  StringLiteral,
+  ObjectProperty,
+} from '@babel/types';
 import { Parser, ParserOptions } from 'prettier';
 import * as parserBabel from 'prettier/plugins/babel';
 
@@ -22,8 +26,7 @@ function withStylexKeySort(parser: Parser): Parser {
 
 function stylexKeySort(program: Program) {
   const stylexNamespace = new Set<string>();
-  const stylexCreate = new Set<string>();
-  const stylexKeyframes = new Set<string>();
+  const stylexIdentifiers = new Set<string>();
 
   const stylexImports = program.body.filter(
     (node): node is ImportDeclaration =>
@@ -46,47 +49,77 @@ function stylexKeySort(program: Program) {
 
       if (
         specifier.type === 'ImportSpecifier' &&
-        specifier.imported.name === 'create'
+        specifier.imported.type === 'Identifier' &&
+        (specifier.imported.name === 'create' ||
+          specifier.imported.name === 'keyframes')
       ) {
-        stylexCreate.add(specifier.local.name);
-      }
-
-      if (
-        specifier.type === 'ImportSpecifier' &&
-        specifier.imported.name === 'keyframes'
-      ) {
-        stylexKeyframes.add(specifier.local.name);
+        stylexIdentifiers.add(specifier.local.name);
       }
     });
   });
 
   for (const node of program.body) {
-    if (node.type === 'VariableDeclaration') {
-      // this is crazy, will refactor
-      // just for testing right now
-      //
-      // i really dont want to use traverse due to performance
-      // but i can probably utilize @babel/types
-      const sortable = node.declarations.filter(
-        (declaration): declaration is VariableDeclarator =>
-          declaration.type === 'VariableDeclarator' &&
-          declaration.init?.type === 'CallExpression' &&
-          ((declaration.init.callee.type === 'Identifier' &&
-            stylexCreate.has(declaration.init.callee.name)) ||
-            (declaration.init.callee.type === 'MemberExpression' &&
-              declaration.init.callee.object.type === 'Identifier' &&
-              declaration.init.callee.property.type === 'Identifier' &&
-              stylexNamespace.has(declaration.init.callee.object.name) &&
-              declaration.init.callee.property.name === 'create')),
-      );
-
-      console.log(sortable, 'sortable');
+    if (node.type !== 'VariableDeclaration') {
+      continue;
     }
+
+    node.declarations.forEach((declarator) => {
+      if (
+        declarator.type === 'VariableDeclarator' &&
+        declarator.init?.type === 'CallExpression' &&
+        (isExpressionStylexIdentifier(declarator.init.callee) ||
+          isExpressionStylexMemberExpression(declarator.init.callee)) &&
+        declarator.init.arguments?.[0].type === 'ObjectExpression'
+      ) {
+        sortObjectKeys(declarator.init.arguments[0]);
+      }
+    });
+  }
+
+  function isExpressionStylexMemberExpression(
+    expr: Node,
+  ): expr is MemberExpression {
+    return (
+      expr.type === 'MemberExpression' &&
+      expr.object.type === 'Identifier' &&
+      expr.property.type === 'Identifier' &&
+      stylexNamespace.has(expr.object.name) &&
+      isCreateOrKeyframes(expr.property.name)
+    );
+  }
+
+  function isExpressionStylexIdentifier(expr: Node): expr is Identifier {
+    return expr.type === 'Identifier' && stylexIdentifiers.has(expr.name);
   }
 }
 
-function isStylexImportSource(source: Literal) {
+function isCreateOrKeyframes(value: string) {
+  return value === 'create' || value === 'keyframes';
+}
+
+function isStylexImportSource(source: StringLiteral) {
   return source.value === '@stylexjs/stylex' || source.value === 'stylex';
+}
+
+function sortObjectKeys(expr: Node) {
+  if (expr.type !== 'ObjectExpression') {
+    return;
+  }
+
+  expr.properties.sort((a, b) => {
+    if (a.type === 'SpreadElement' || b.type === 'SpreadElement') {
+      return 0;
+    }
+
+    return a.key.name > b.key.name ? 1 : -1;
+  });
+
+  expr.properties
+    .filter(
+      (property): property is ObjectProperty =>
+        property.type === 'ObjectProperty',
+    )
+    .forEach((property) => sortObjectKeys(property.value));
 }
 
 export const languages = [

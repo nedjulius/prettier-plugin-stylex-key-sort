@@ -5,6 +5,9 @@ async function format(code: string): Promise<string> {
   return await prettierFormat(code, {
     parser: 'babel',
     plugins: [stylexKeySortPlugin],
+    semi: true,
+    tabWidth: 2,
+    singleQuote: true,
   });
 }
 
@@ -17,33 +20,54 @@ type TestCase = {
 const TEST_CASES: TestCase[] = [
   {
     description: 'should correctly sort regular stylex.create arguments',
-    input: `
-      import stylex from '@stylexjs/stylex';
-      const styles = stylex.create({
-        foo: {
-          display: 'flex',
-          borderColor: 'red',
-          alignItems: 'center',
-        },
-      });
-    `,
-    output: `
-      import stylex from '@stylexjs/stylex';
-      const styles = stylex.create({
-        foo: {
-          alignItems: 'center',
-          borderColor: 'red',
-          display: 'flex',
-        },
-      });
-    `,
+    input: `import stylex from '@stylexjs/stylex';
+const styles = stylex.create({
+  foo: {
+    display: 'flex',
+    borderColor: 'red',
+    alignItems: 'center',
+  },
+});
+`,
+    output: `import stylex from '@stylexjs/stylex';
+const styles = stylex.create({
+  foo: {
+    alignItems: 'center',
+    borderColor: 'red',
+    display: 'flex',
+  },
+});
+`,
+  },
+  {
+    description: 'should correctly sort with line comments',
+    input: `import stylex from '@stylexjs/stylex';
+const styles = stylex.create({
+  foo: {
+    display: 'flex', // foo
+    borderColor: 'red',
+    alignItems: 'center',
+  },
+});
+`,
+    output: `import stylex from '@stylexjs/stylex';
+const styles = stylex.create({
+  foo: {
+    alignItems: 'center',
+    borderColor: 'red',
+    display: 'flex', // foo
+  },
+});
+`,
   },
 ];
 
 describe('prettier-plugin-stylex-key-sort', () => {
   for (const { description, input, output } of TEST_CASES) {
     it(description, async () => {
-      expect(await format(input)).toEqual(output);
+      const code = await format(input);
+
+      expect(code).toEqual(output);
     });
   }
 });
