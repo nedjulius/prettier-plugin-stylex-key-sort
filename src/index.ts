@@ -1,9 +1,7 @@
 import {
-  ImportDeclaration,
   Program,
   Identifier,
   MemberExpression,
-  ObjectExpression,
   Node,
   StringLiteral,
   ObjectProperty,
@@ -24,39 +22,48 @@ function withStylexKeySort(parser: Parser): Parser {
   };
 }
 
-function stylexKeySort(program: Program) {
-  const stylexNamespace = new Set<string>();
-  const stylexIdentifiers = new Set<string>();
+function getStylexImportContext(program: Program): {
+  namespaces: Set<string>;
+  identifiers: Set<string>;
+} {
+  return program.body.reduce(
+    (context, node) => {
+      if (node.type !== 'ImportDeclaration') {
+        // skip if node is not an ImportDeclaration
+        return context;
+      }
 
-  const stylexImports = program.body.filter(
-    (node): node is ImportDeclaration =>
-      node.type === 'ImportDeclaration' && isStylexImportSource(node.source),
+      node.specifiers.forEach((specifier) => {
+        if (
+          specifier.type === 'ImportDefaultSpecifier' ||
+          specifier.type === 'ImportNamespaceSpecifier'
+        ) {
+          context.namespaces.add(specifier.local.name);
+        }
+
+        if (
+          specifier.type === 'ImportSpecifier' &&
+          specifier.imported.type === 'Identifier' &&
+          (specifier.imported.name === 'create' ||
+            specifier.imported.name === 'keyframes')
+        ) {
+          context.identifiers.add(specifier.local.name);
+        }
+      });
+
+      return context;
+    },
+    { namespaces: new Set<string>(), identifiers: new Set<string>() },
   );
+}
 
-  if (stylexImports.length === 0) {
-    // terminate if there are no stylex imports
+function stylexKeySort(program: Program) {
+  const { namespaces, identifiers } = getStylexImportContext(program);
+
+  if (namespaces.size === 0) {
+    // skip if there are no namespaces
     return;
   }
-
-  stylexImports.forEach((node) => {
-    node.specifiers.forEach((specifier) => {
-      if (
-        specifier.type === 'ImportDefaultSpecifier' ||
-        specifier.type === 'ImportNamespaceSpecifier'
-      ) {
-        stylexNamespace.add(specifier.local.name);
-      }
-
-      if (
-        specifier.type === 'ImportSpecifier' &&
-        specifier.imported.type === 'Identifier' &&
-        (specifier.imported.name === 'create' ||
-          specifier.imported.name === 'keyframes')
-      ) {
-        stylexIdentifiers.add(specifier.local.name);
-      }
-    });
-  });
 
   for (const node of program.body) {
     if (node.type !== 'VariableDeclaration') {
@@ -77,19 +84,19 @@ function stylexKeySort(program: Program) {
   }
 
   function isExpressionStylexMemberExpression(
-    expr: Node,
-  ): expr is MemberExpression {
+    node: Node,
+  ): node is MemberExpression {
     return (
-      expr.type === 'MemberExpression' &&
-      expr.object.type === 'Identifier' &&
-      expr.property.type === 'Identifier' &&
-      stylexNamespace.has(expr.object.name) &&
-      isCreateOrKeyframes(expr.property.name)
+      node.type === 'MemberExpression' &&
+      node.object.type === 'Identifier' &&
+      node.property.type === 'Identifier' &&
+      namespaces.has(node.object.name) &&
+      isCreateOrKeyframes(node.property.name)
     );
   }
 
-  function isExpressionStylexIdentifier(expr: Node): expr is Identifier {
-    return expr.type === 'Identifier' && stylexIdentifiers.has(expr.name);
+  function isExpressionStylexIdentifier(node: Node): node is Identifier {
+    return node.type === 'Identifier' && identifiers.has(node.name);
   }
 }
 
@@ -101,12 +108,12 @@ function isStylexImportSource(source: StringLiteral) {
   return source.value === '@stylexjs/stylex' || source.value === 'stylex';
 }
 
-function sortObjectKeys(expr: Node) {
-  if (expr.type !== 'ObjectExpression') {
+function sortObjectKeys(node: Node) {
+  if (node.type !== 'ObjectExpression') {
     return;
   }
 
-  expr.properties.sort((a, b) => {
+  node.properties.sort((a, b) => {
     if (a.type === 'SpreadElement' || b.type === 'SpreadElement') {
       return 0;
     }
@@ -114,7 +121,7 @@ function sortObjectKeys(expr: Node) {
     return a.key.name > b.key.name ? 1 : -1;
   });
 
-  expr.properties
+  node.properties
     .filter(
       (property): property is ObjectProperty =>
         property.type === 'ObjectProperty',
@@ -128,8 +135,20 @@ export const languages = [
     parsers: ['babel'],
     extensions: ['.js', '.jsx'],
   },
+  {
+    name: 'TypeScript',
+    parsers: ['babel-ts'],
+    extensions: ['.ts', '.tsx'],
+  },
+  {
+    name: 'Flow',
+    parsers: ['babel-flow'],
+    extensions: ['.js', '.jsx'],
+  },
 ];
 
 export const parsers = {
   babel: withStylexKeySort(parserBabel.parsers.babel),
+  'babel-ts': withStylexKeySort(parserBabel.parsers['babel-ts']),
+  'babel-flow': withStylexKeySort(parserBabel.parsers['babel-flow']),
 };
