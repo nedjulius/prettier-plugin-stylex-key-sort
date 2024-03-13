@@ -6,13 +6,13 @@ import {
   StringLiteral,
   ObjectProperty,
 } from '@babel/types';
-import { Parser, ParserOptions } from 'prettier';
+import { Parser, ParserOptions, SupportOption } from 'prettier';
 import * as parserBabel from 'prettier/plugins/babel';
 
 type StylexKeySortPluginOptions = {
-  minKeys?: number;
-  validImports?: string[];
-  allowLineSeparatedGroups?: boolean;
+  minKeys: number;
+  validImports: string[];
+  allowLineSeparatedGroups: boolean;
 };
 
 function withStylexKeySort(parser: Parser): Parser {
@@ -80,11 +80,7 @@ function stylexKeySort(
   program: Program,
   options: ParserOptions & StylexKeySortPluginOptions,
 ) {
-  const {
-    validImports = ['@stylexjs/stylex', 'stylex'],
-    minKeys = 2,
-    allowLineSeparatedGroups = false,
-  } = options;
+  const { validImports, minKeys, allowLineSeparatedGroups } = options;
   const { namespaces, identifiers } = getStylexImportContext(
     program,
     validImports,
@@ -148,13 +144,15 @@ function sortObjectKeys(
     return;
   }
 
-  node.properties.sort((a, b) => {
-    if (a.type === 'SpreadElement' || b.type === 'SpreadElement') {
-      return 0;
-    }
+  if (node.properties.length >= options.minKeys) {
+    node.properties.sort((a, b) => {
+      if (a.type === 'SpreadElement' || b.type === 'SpreadElement') {
+        return 0;
+      }
 
-    return a.key.name > b.key.name ? 1 : -1;
-  });
+      return a.key.name > b.key.name ? 1 : -1;
+    });
+  }
 
   node.properties
     .filter(
@@ -181,6 +179,32 @@ export const languages = [
     extensions: ['.js', '.jsx'],
   },
 ];
+
+export const options: {
+  [K in keyof StylexKeySortPluginOptions]: SupportOption;
+} = {
+  validImports: {
+    type: 'string',
+    array: true,
+    default: [{ value: ['@stylexjs/stylex', 'stylex'] }],
+    category: 'Global',
+    description: 'Possible string where you can import stylex from',
+  },
+  minKeys: {
+    type: 'int',
+    default: 2,
+    category: 'Global',
+    description:
+      'Minimum number of keys required after which the sort is enforced',
+  },
+  allowLineSeparatedGroups: {
+    type: 'boolean',
+    default: false,
+    category: 'Global',
+    description:
+      'Sort groups of keys that have a blank line between them separately',
+  },
+};
 
 export const parsers = {
   babel: withStylexKeySort(parserBabel.parsers.babel),
