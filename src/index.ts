@@ -31,7 +31,10 @@ function withStylexKeySort(parser: Parser): Parser {
   };
 }
 
-function getStylexImportContext(program: Program): {
+function getStylexImportContext(
+  program: Program,
+  validImports: string[],
+): {
   namespaces: Set<string>;
   identifiers: Set<string>;
 } {
@@ -67,14 +70,25 @@ function getStylexImportContext(program: Program): {
     },
     { namespaces: new Set<string>(), identifiers: new Set<string>() },
   );
+
+  function isStylexImportSource(source: StringLiteral) {
+    return validImports.includes(source.value);
+  }
 }
 
 function stylexKeySort(
   program: Program,
   options: ParserOptions & StylexKeySortPluginOptions,
 ) {
-  const { validImports } = options;
-  const { namespaces, identifiers } = getStylexImportContext(program);
+  const {
+    validImports = ['@stylexjs/stylex', 'stylex'],
+    minKeys = 2,
+    allowLineSeparatedGroups = false,
+  } = options;
+  const { namespaces, identifiers } = getStylexImportContext(
+    program,
+    validImports,
+  );
 
   if (namespaces.size === 0 && identifiers.size === 0) {
     // skip if there are no namespaces or identifiers
@@ -94,7 +108,10 @@ function stylexKeySort(
           isExpressionStylexMemberExpression(declarator.init.callee)) &&
         declarator.init.arguments?.[0].type === 'ObjectExpression'
       ) {
-        sortObjectKeys(declarator.init.arguments[0]);
+        sortObjectKeys(declarator.init.arguments[0], {
+          minKeys,
+          allowLineSeparatedGroups,
+        });
       }
     });
   }
@@ -120,11 +137,13 @@ function isCreateOrKeyframes(value: string) {
   return value === 'create' || value === 'keyframes';
 }
 
-function isStylexImportSource(source: StringLiteral) {
-  return ['@stylexjs/stylex', 'stylex'].includes(source.value);
-}
-
-function sortObjectKeys(node: Node) {
+function sortObjectKeys(
+  node: Node,
+  options: Pick<
+    StylexKeySortPluginOptions,
+    'minKeys' | 'allowLineSeparatedGroups'
+  >,
+) {
   if (node.type !== 'ObjectExpression') {
     return;
   }
@@ -142,7 +161,7 @@ function sortObjectKeys(node: Node) {
       (property): property is ObjectProperty =>
         property.type === 'ObjectProperty',
     )
-    .forEach((property) => sortObjectKeys(property.value));
+    .forEach((property) => sortObjectKeys(property.value, options));
 }
 
 export const languages = [
