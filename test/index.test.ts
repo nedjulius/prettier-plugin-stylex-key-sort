@@ -193,6 +193,32 @@ const keyframes = kf({
 `,
     options: { validImports: ['stlx'] },
   },
+  {
+    description: 'should not sort if there are no valid imports present',
+    input: `import stylex from '@stylexjs/stylex';
+const styles = stylex.create({
+  foo: {
+    position: 'absolute',
+    display: 'flex',
+
+    borderColor: 'red',
+    alignItems: 'center',
+  },
+});
+`,
+    output: `import stylex from '@stylexjs/stylex';
+const styles = stylex.create({
+  foo: {
+    display: 'flex',
+    position: 'absolute',
+
+    alignItems: 'center',
+    borderColor: 'red',
+  },
+});
+`,
+    only: true,
+  },
 ];
 
 describe('prettier-plugin-stylex-key-sort', () => {
