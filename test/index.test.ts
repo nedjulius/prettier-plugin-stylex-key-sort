@@ -17,6 +17,7 @@ type TestCase = {
   input: string;
   output: string;
   options?: object;
+  only?: boolean;
 };
 
 const TEST_CASES: TestCase[] = [
@@ -195,8 +196,10 @@ const keyframes = kf({
 ];
 
 describe('prettier-plugin-stylex-key-sort', () => {
-  for (const { description, input, output, options } of TEST_CASES) {
-    it(description, async () => {
+  for (const { description, input, output, options, only } of TEST_CASES) {
+    const testFn = only ? it.only : it;
+
+    testFn(description, async () => {
       const code = await format(input, options);
 
       expect(code).toEqual(output);
