@@ -5,6 +5,8 @@ import {
   Node,
   StringLiteral,
   ObjectProperty,
+  ObjectMethod,
+  SpreadElement,
 } from '@babel/types';
 import { Parser, ParserOptions, SupportOption } from 'prettier';
 import * as parserBabel from 'prettier/plugins/babel';
@@ -23,6 +25,7 @@ function withStylexKeySort(parser: Parser): Parser {
 
       stylexKeySort(
         ast.program,
+        text,
         options as ParserOptions & StylexKeySortPluginOptions,
       );
 
@@ -78,6 +81,7 @@ function getStylexImportContext(
 
 function stylexKeySort(
   program: Program,
+  sourceCode: string,
   options: ParserOptions & StylexKeySortPluginOptions,
 ) {
   const { validImports, minKeys, allowLineSeparatedGroups } = options;
@@ -104,7 +108,7 @@ function stylexKeySort(
           isExpressionStylexMemberExpression(declarator.init.callee)) &&
         declarator.init.arguments?.[0].type === 'ObjectExpression'
       ) {
-        sortObjectKeys(declarator.init.arguments[0], {
+        sortObjectKeys(declarator.init.arguments[0], sourceCode, {
           minKeys,
           allowLineSeparatedGroups,
         });
@@ -135,6 +139,7 @@ function isCreateOrKeyframes(value: string) {
 
 function sortObjectKeys(
   node: Node,
+  sourceCode: string,
   options: Pick<
     StylexKeySortPluginOptions,
     'minKeys' | 'allowLineSeparatedGroups'
@@ -145,21 +150,66 @@ function sortObjectKeys(
   }
 
   if (node.properties.length >= options.minKeys) {
-    node.properties.sort((a, b) => {
-      if (a.type === 'SpreadElement' || b.type === 'SpreadElement') {
-        return 0;
-      }
+    const lineSeparatedGroups = getLineSeparatedGroups(
+      node.properties,
+      sourceCode,
+    );
 
-      return a.key.name > b.key.name ? 1 : -1;
-    });
+    const properties = options.allowLineSeparatedGroups
+      ? lineSeparatedGroups
+      : [lineSeparatedGroups.flat()];
+
+    node.properties = properties
+      .map((group) =>
+        group.sort((a, b) => {
+          if (a.type === 'SpreadElement' || b.type === 'SpreadElement') {
+            return 0;
+          }
+
+          return a.key.name > b.key.name ? 1 : -1;
+        }),
+      )
+      .flat();
   }
 
-  node.properties
-    .filter(
-      (property): property is ObjectProperty =>
-        property.type === 'ObjectProperty',
-    )
-    .forEach((property) => sortObjectKeys(property.value, options));
+  node.properties.forEach((node) => {
+    if (node.type === 'ObjectProperty') {
+      sortObjectKeys(node.value, sourceCode, options);
+    }
+  });
+}
+
+function getLineSeparatedGroups(
+  properties: (ObjectProperty | SpreadElement | ObjectMethod)[],
+  sourceCode: string,
+) {
+  const groups = [];
+  let currGroup = [];
+
+  for (let i = 0; i < properties.length; i++) {
+    const aNode = properties[i];
+    const bNode = properties[i + 1];
+
+    currGroup.push(aNode);
+
+    if (
+      bNode === undefined ||
+      isBlankLineBetweenProperties(aNode, bNode, sourceCode)
+    ) {
+      groups.push(currGroup);
+      currGroup = [];
+    }
+  }
+
+  return groups;
+}
+
+function isBlankLineBetweenProperties(
+  a: ObjectProperty | ObjectMethod,
+  b: ObjectProperty | ObjectMethod,
+  sourceCode: string,
+) {
+  return a.end && b.start && /\n\s*\n/.test(sourceCode.slice(a.end, b.start));
 }
 
 export const languages = [
