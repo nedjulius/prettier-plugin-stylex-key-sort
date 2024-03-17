@@ -10,6 +10,7 @@ import {
 } from '@babel/types';
 import { Parser, ParserOptions, SupportOption } from 'prettier';
 import * as parserBabel from 'prettier/plugins/babel';
+import getPropertyPriorityAndType from './get-property-priority-and-type';
 
 type StylexKeySortPluginOptions = {
   minKeys: number;
@@ -159,17 +160,22 @@ function sortObjectKeys(
       ? lineSeparatedGroups
       : [lineSeparatedGroups.flat()];
 
-    node.properties = properties
-      .map((group) =>
-        group.sort((a, b) => {
-          if (a.type === 'SpreadElement' || b.type === 'SpreadElement') {
-            return 0;
-          }
+    node.properties = properties.flatMap((group) =>
+      group.sort((a, b) => {
+        if (a.type === 'SpreadElement' || b.type === 'SpreadElement') {
+          return 0;
+        }
 
-          return a.key.name > b.key.name ? 1 : -1;
-        }),
-      )
-      .flat();
+        const prev = getPropertyPriorityAndType(a.key.name);
+        const curr = getPropertyPriorityAndType(b.key.name);
+
+        if (prev.type !== 'string' || curr.type !== 'string') {
+          return prev.priority <= curr.priority ? 1 : -1;
+        }
+
+        return a.key.name > b.key.name ? 1 : -1;
+      }),
+    );
   }
 
   node.properties.forEach((node) => {
@@ -196,6 +202,14 @@ function getLineSeparatedGroups(
       bNode === undefined ||
       isBlankLineBetweenProperties(aNode, bNode, sourceCode)
     ) {
+      const lastGroupNode = currGroup[currGroup.length - 1];
+      const position = (lastGroupNode?.end ?? 0) + 2;
+
+      lastGroupNode.trailingComments = [
+        ...(lastGroupNode.trailingComments ?? []),
+        { type: 'CommentLine', value: '', start: position, end: position + 1 },
+      ];
+
       groups.push(currGroup);
       currGroup = [];
     }

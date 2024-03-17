@@ -218,6 +218,7 @@ const styles = stylex.create({
 });
 `,
     options: { allowLineSeparatedGroups: true },
+    only: true,
   },
 ];
 
