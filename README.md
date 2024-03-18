@@ -53,4 +53,4 @@ Prettier plugin that sorts StyleX keys according to [StyleX property priorities]
 - Any contributions are welcome
 - Please open an issue if you encounter any bugs
 - Make sure an issue exists before you create a pull request
-- Act according to the code of conducting when contributing to the project
+- Act according to the code of conduct when contributing to the project
