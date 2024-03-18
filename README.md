@@ -16,11 +16,11 @@ Prettier plugin that sorts StyleX keys according to StyleX [property priorities]
 }
 ```
 
-`npx prettier --write **/*.{ts|js|tsx|jsx}`
+`npx prettier --write '**/*.{ts|js|tsx|jsx}'`
 
 ### Without config
 
-`npx prettier --write **/*.{ts|js|tsx|jsx} --plugin=prettier-plugin-stylex-key-sort`
+`npx prettier --write '**/*.{ts|js|tsx|jsx}' --plugin=prettier-plugin-stylex-key-sort`
 
 ## Options
 
