@@ -7,33 +7,17 @@ import {
   ObjectProperty,
   ObjectMethod,
   SpreadElement,
+  PrivateName,
 } from '@babel/types';
 import { Parser, ParserOptions, SupportOption } from 'prettier';
 import * as parserBabel from 'prettier/plugins/babel';
-import getPropertyPriorityAndType from './get-property-priority-and-type';
+import getKeyValuePriorityAndType from './get-key-value-priority-and-type';
 
 type StylexKeySortPluginOptions = {
   minKeys: number;
   validImports: string[];
   allowLineSeparatedGroups: boolean;
 };
-
-function withStylexKeySort(parser: Parser): Parser {
-  return {
-    ...parser,
-    parse: function(text: string, options: ParserOptions) {
-      const ast = parser.parse(text, options);
-
-      stylexKeySort(
-        ast.program,
-        text,
-        options as ParserOptions & StylexKeySortPluginOptions,
-      );
-
-      return ast;
-    },
-  };
-}
 
 function getStylexImportContext(
   program: Program,
@@ -92,7 +76,6 @@ function stylexKeySort(
   );
 
   if (namespaces.size === 0 && identifiers.size === 0) {
-    // skip if there are no namespaces or identifiers
     return;
   }
 
@@ -161,20 +144,7 @@ function sortObjectKeys(
       : [lineSeparatedGroups.flat()];
 
     node.properties = properties.flatMap((group) =>
-      group.sort((a, b) => {
-        if (a.type === 'SpreadElement' || b.type === 'SpreadElement') {
-          return 0;
-        }
-
-        const prev = getPropertyPriorityAndType(a.key.name);
-        const curr = getPropertyPriorityAndType(b.key.name);
-
-        if (prev.type !== 'string' || curr.type !== 'string') {
-          return prev.priority <= curr.priority ? 1 : -1;
-        }
-
-        return a.key.name > b.key.name ? 1 : -1;
-      }),
+      group.sort(compareProperties),
     );
   }
 
@@ -183,6 +153,43 @@ function sortObjectKeys(
       sortObjectKeys(node.value, sourceCode, options);
     }
   });
+}
+
+function compareProperties(
+  a: ObjectProperty | ObjectMethod | SpreadElement,
+  b: ObjectProperty | ObjectMethod | SpreadElement,
+): number {
+  if (a.type === 'SpreadElement' || b.type === 'SpreadElement') {
+    return 0;
+  }
+
+  const aKeyValue = getKeyValue(
+    a.key as Identifier | PrivateName | StringLiteral,
+  );
+  const bKeyValue = getKeyValue(
+    b.key as Identifier | PrivateName | StringLiteral,
+  );
+
+  const prev = getKeyValuePriorityAndType(aKeyValue);
+  const curr = getKeyValuePriorityAndType(bKeyValue);
+
+  if (prev.type !== 'string' || curr.type !== 'string') {
+    return prev.priority > curr.priority ? 1 : -1;
+  }
+
+  return aKeyValue > bKeyValue ? 1 : -1;
+}
+
+function getKeyValue(key: Identifier | PrivateName | StringLiteral): string {
+  if (key.type === 'StringLiteral') {
+    return key.value;
+  }
+
+  if (key.type === 'PrivateName') {
+    return key.id.name;
+  }
+
+  return key.name;
 }
 
 function getLineSeparatedGroups(
@@ -202,14 +209,6 @@ function getLineSeparatedGroups(
       bNode === undefined ||
       isBlankLineBetweenProperties(aNode, bNode, sourceCode)
     ) {
-      const lastGroupNode = currGroup[currGroup.length - 1];
-      const position = (lastGroupNode?.end ?? 0) + 2;
-
-      lastGroupNode.trailingComments = [
-        ...(lastGroupNode.trailingComments ?? []),
-        { type: 'CommentLine', value: '', start: position, end: position + 1 },
-      ];
-
       groups.push(currGroup);
       currGroup = [];
     }
@@ -219,11 +218,28 @@ function getLineSeparatedGroups(
 }
 
 function isBlankLineBetweenProperties(
-  a: ObjectProperty | ObjectMethod,
-  b: ObjectProperty | ObjectMethod,
+  a: ObjectProperty | ObjectMethod | SpreadElement,
+  b: ObjectProperty | ObjectMethod | SpreadElement,
   sourceCode: string,
 ) {
   return a.end && b.start && /\n\s*\n/.test(sourceCode.slice(a.end, b.start));
+}
+
+function withStylexKeySort(parser: Parser): Parser {
+  return {
+    ...parser,
+    parse: function(text: string, options: ParserOptions) {
+      const ast = parser.parse(text, options);
+
+      stylexKeySort(
+        ast.program,
+        text,
+        options as ParserOptions & StylexKeySortPluginOptions,
+      );
+
+      return ast;
+    },
+  };
 }
 
 export const languages = [

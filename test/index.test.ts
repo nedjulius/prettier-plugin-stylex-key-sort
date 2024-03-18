@@ -27,8 +27,12 @@ const TEST_CASES: TestCase[] = [
 const styles = stylex.create({
   foo: {
     display: 'flex',
-    borderColor: 'red',
     alignItems: 'center',
+    borderColor: {
+      '@media (min-width: 1400px)': 120,
+      ':hover': 'blue',
+      default: 'red',
+    },
   },
 });
 `,
@@ -36,11 +40,16 @@ const styles = stylex.create({
 const styles = stylex.create({
   foo: {
     alignItems: 'center',
-    borderColor: 'red',
+    borderColor: {
+      default: 'red',
+      ':hover': 'blue',
+      '@media (min-width: 1400px)': 120,
+    },
     display: 'flex',
   },
 });
 `,
+    only: true,
   },
   {
     description: 'should correctly sort regular keyframes arguments',
@@ -194,7 +203,7 @@ const keyframes = kf({
     options: { validImports: ['stlx'] },
   },
   {
-    description: 'should not sort if there are no valid imports present',
+    description: 'should sort line separated groups',
     input: `import stylex from '@stylexjs/stylex';
 const styles = stylex.create({
   foo: {
@@ -218,6 +227,33 @@ const styles = stylex.create({
 });
 `,
     options: { allowLineSeparatedGroups: true },
+  },
+  {
+    description: 'should sort keys separated by spread element',
+    input: `import { create as cr } from '@stylexjs/stylex';
+const props = { padding: '10px' };
+const styles = cr({
+  foo: {
+    display: 'flex',
+    alignItems: 'center',
+    ...props,
+    position: 'absolute',
+    borderColor: 'red',
+  },
+});
+`,
+    output: `import { create as cr } from '@stylexjs/stylex';
+const props = { padding: '10px' };
+const styles = cr({
+  foo: {
+    alignItems: 'center',
+    display: 'flex',
+    ...props,
+    borderColor: 'red',
+    position: 'absolute',
+  },
+});
+`,
     only: true,
   },
 ];

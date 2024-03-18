@@ -9,22 +9,22 @@ type PriorityAndType = {
   type: 'string' | 'pseudoClass' | 'pseudoElement' | 'atRule';
 };
 
-export default function getPropertyPriorityAndType(
-  key: string,
+export default function getKeyValuePriorityAndType(
+  keyValue: string,
 ): PriorityAndType {
-  if (key.startsWith('@supports')) {
+  if (keyValue.startsWith('@supports')) {
     return { priority: AT_RULE_PRIORITIES['@supports'], type: 'atRule' };
   }
 
-  if (key.startsWith('::')) {
+  if (keyValue.startsWith('::')) {
     return { priority: PSEUDO_ELEMENT_PRIORITY, type: 'pseudoElement' };
   }
 
-  if (key.startsWith(':')) {
+  if (keyValue.startsWith(':')) {
     const prop =
-      key.startsWith(':') && key.includes('(')
-        ? key.slice(0, key.indexOf('('))
-        : key;
+      keyValue.startsWith(':') && keyValue.includes('(')
+        ? keyValue.slice(0, keyValue.indexOf('('))
+        : keyValue;
 
     return {
       priority:
@@ -34,11 +34,11 @@ export default function getPropertyPriorityAndType(
     };
   }
 
-  if (key.startsWith('@media')) {
+  if (keyValue.startsWith('@media')) {
     return { priority: AT_RULE_PRIORITIES['@media'], type: 'atRule' };
   }
 
-  if (key.startsWith('@container')) {
+  if (keyValue.startsWith('@container')) {
     return { priority: AT_RULE_PRIORITIES['@container'], type: 'atRule' };
   }
 
