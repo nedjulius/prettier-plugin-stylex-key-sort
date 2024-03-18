@@ -1,6 +1,6 @@
 # prettier-plugin-stylex-key-sort
 
-Prettier plugin that sorts StyleX keys according to StyleX [property priorities](https://github.com/facebook/stylex/blob/main/packages/shared/src/utils/property-priorities.js).
+Prettier plugin that sorts StyleX keys according to [StyleX property priorities](https://github.com/facebook/stylex/blob/main/packages/shared/src/utils/property-priorities.js).
 
 ## Installation
 
