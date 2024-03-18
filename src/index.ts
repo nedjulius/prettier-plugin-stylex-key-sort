@@ -32,7 +32,6 @@ function getStylexImportContext(
         node.type !== 'ImportDeclaration' ||
         !isStylexImportSource(node.source)
       ) {
-        // skip if node is not an ImportDeclaration
         return context;
       }
 
