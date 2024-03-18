@@ -19,7 +19,7 @@ describe('prettier-plugin-stylex-key-sort', () => {
       ? JSON.parse(readFileSync(optionsPath).toString())
       : {};
 
-    const testFn = options?.only ? it.only : it;
+    const testFn = getTestFn(options);
 
     testFn(testName, async () => {
       const output = await prettierFormat(input, {
@@ -33,3 +33,15 @@ describe('prettier-plugin-stylex-key-sort', () => {
     });
   });
 });
+
+function getTestFn(options: Partial<{ skip: boolean; only: boolean }>) {
+  if (options.skip) {
+    return it.skip;
+  }
+
+  if (options.only) {
+    return it.only;
+  }
+
+  return it;
+}

@@ -68,7 +68,7 @@ function stylexKeySort(
   sourceCode: string,
   options: ParserOptions & StylexKeySortPluginOptions,
 ) {
-  const { validImports, minKeys, allowLineSeparatedGroups } = options;
+  const { validImports, minKeys } = options;
   const { namespaces, identifiers } = getStylexImportContext(
     program,
     validImports,
@@ -93,7 +93,7 @@ function stylexKeySort(
       ) {
         sortObjectKeys(declarator.init.arguments[0], sourceCode, {
           minKeys,
-          allowLineSeparatedGroups,
+          allowLineSeparatedGroups: false,
         });
       }
     });
@@ -133,14 +133,9 @@ function sortObjectKeys(
   }
 
   if (node.properties.length >= options.minKeys) {
-    const lineSeparatedGroups = getLineSeparatedGroups(
-      node.properties,
-      sourceCode,
-    );
-
     const properties = options.allowLineSeparatedGroups
-      ? lineSeparatedGroups
-      : [lineSeparatedGroups.flat()];
+      ? getLineSeparatedGroups(node.properties, sourceCode)
+      : [node.properties];
 
     node.properties = properties.flatMap((group) =>
       group.sort(compareProperties),
@@ -169,11 +164,11 @@ function compareProperties(
     b.key as Identifier | PrivateName | StringLiteral,
   );
 
-  const prev = getKeyValuePriorityAndType(aKeyValue);
-  const curr = getKeyValuePriorityAndType(bKeyValue);
+  const aKey = getKeyValuePriorityAndType(aKeyValue);
+  const bKey = getKeyValuePriorityAndType(bKeyValue);
 
-  if (prev.type !== 'string' || curr.type !== 'string') {
-    return prev.priority > curr.priority ? 1 : -1;
+  if (aKey.type !== 'string' || bKey.type !== 'string') {
+    return aKey.priority > bKey.priority ? 1 : -1;
   }
 
   return aKeyValue > bKeyValue ? 1 : -1;
@@ -276,6 +271,7 @@ export const options: {
     description:
       'Minimum number of keys required after which the sort is enforced',
   },
+  // Currently, this option is disabled
   allowLineSeparatedGroups: {
     type: 'boolean',
     default: false,
