@@ -222,7 +222,7 @@ function isBlankLineBetweenProperties(
 function withStylexKeySort(parser: Parser): Parser {
   return {
     ...parser,
-    parse: function(text: string, options: ParserOptions) {
+    parse: function (text: string, options: ParserOptions) {
       const ast = parser.parse(text, options);
 
       stylexKeySort(

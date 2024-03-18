@@ -12,7 +12,8 @@
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
     "lint": "eslint \"**/*.{ts,js}\"",
     "lint:fix": "npm run lint --fix",
-    "format": "prettier --write '**/*.{ts,json}' --config .prettierrc.json --ignore-path .gitignore"
+    "format": "prettier --write '**/*.{ts,json}' --config .prettierrc.json --ignore-path .gitignore",
+    "format:check": "prettier --check '**/*.{ts,json}' --config .prettierrc.json --ignore-path .gitignore"
   },
   "files": [
     "dist",
