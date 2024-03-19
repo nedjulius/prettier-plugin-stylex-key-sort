@@ -1,7 +1,7 @@
 {
   "name": "prettier-plugin-stylex-key-sort",
   "author": "nedjulius",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Prettier plugin to sort StyleX keys",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
